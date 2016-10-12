@@ -21,15 +21,18 @@ int incomingByte = 0;   // for incoming serial data
 // Our variables
 int groundTapeDiff = 300;
 // when calibrating with a sensor at ~1in from the ground we found that the tape values would be between 20-40 and the ground values would be between 200-300 
-int turnSpeed = 65;
-int offTurnSpeed = 35;
-int straightSpeed = 50;
-int time_off_threshold = 500;
+int turnSpeed = 20;
+int offTurnSpeed = 25;
+int rightOffTurnSpeed = 30;
+int straightSpeed = 40;
+int time_off_threshold = 600;
+boolean switch_direction[] = {true, false, true, false};
 
 
 int last_direction;
 int time_off;
 int time_off_start;
+int switches;
 
 
 int stop_string = 115;
@@ -53,6 +56,12 @@ void setup() {
   rightMotor->run(FORWARD);
   // turn on motor
   rightMotor->run(RELEASE);
+
+//  off_direction_order[0] = true;
+//  off_direction_order[1] = false;
+//  off_direction_order[2] = true;
+//  off_direction_order[3] =false;
+  
 }
 
 void loop() {
@@ -60,10 +69,10 @@ void loop() {
   // reading the sensor values
   int leftSensorVal = analogRead(leftSensor);
   int rightSensorVal = analogRead(rightSensor);
-  Serial.print("leftsensor");
-  Serial.println(leftSensorVal);
-  Serial.print("rightsensor");
-  Serial.println(rightSensorVal);
+//  Serial.print("leftsensor");
+//  Serial.println(leftSensorVal);
+//  Serial.print("rightsensor");
+//  Serial.println(rightSensorVal);
 
   int t = millis();
 
@@ -106,8 +115,8 @@ void loop() {
       last_direction = 0;
       leftMotor->run(FORWARD);
       leftMotor->setSpeed(turnSpeed);
-      rightMotor->run(FORWARD);
-      rightMotor->setSpeed(0);
+      rightMotor->run(BACKWARD);
+      rightMotor->setSpeed(turnSpeed);
     }
     else if ((leftSensorVal < groundTapeDiff) && (rightSensorVal > groundTapeDiff))
     {
@@ -115,8 +124,8 @@ void loop() {
       Serial.println("RIGHT");
       time_off = -1;
       last_direction = 1;
-      leftMotor->run(FORWARD);
-      leftMotor->setSpeed(0);
+      leftMotor->run(BACKWARD);
+      leftMotor->setSpeed(turnSpeed);
       rightMotor->run(FORWARD);
       rightMotor->setSpeed(turnSpeed);
     }
@@ -125,34 +134,41 @@ void loop() {
       Serial.println("FUCK");
       if (time_off == -1) {
        time_off_start = t; 
+       time_off_threshold = 500;
+       switches = 0;
       } 
       time_off = t - time_off_start;
-      Serial.println(time_off);
-      if (time_off >= time_off_threshold) {
-        if (last_direction == 1) {
-          last_direction = 0;
-          time_off_start = t;
-          
-        } else if  (last_direction == 0) {
-          last_direction = 1;
-          time_off_start = t;
-        }
-        time_off_threshold = time_off_threshold + 100;
-      }
         
       if (last_direction == 0) {
         leftMotor->run(FORWARD);
-        leftMotor->setSpeed(offTurnSpeed);
-        rightMotor->run(FORWARD);
-        rightMotor->setSpeed(0);
+        leftMotor->setSpeed(rightOffTurnSpeed);
+        rightMotor->run(BACKWARD);
+        rightMotor->setSpeed(rightOffTurnSpeed);
       }
       else if (last_direction == 1) {
-        leftMotor->run(FORWARD);
-        leftMotor->setSpeed(0);
+        leftMotor->run(BACKWARD);
+        leftMotor->setSpeed(offTurnSpeed);
         rightMotor->run(FORWARD);
         rightMotor->setSpeed(offTurnSpeed);
       }
+
+      
+      if (time_off >= time_off_threshold) {
+        if (switch_direction[switches]) {
+          Serial.println(switch_direction[switches]);
+          if (last_direction == 1) { last_direction = 0; } 
+          else if  (last_direction == 0) { last_direction = 1; }
+          time_off_start = t; //maybe here
+        }
+        switches = switches + 1;
+        if (switches == 4) {
+          time_off_threshold = time_off_threshold + 100;
+          switches=0;
+        }
+      }
     }
+
+    
 
 //  }
   
